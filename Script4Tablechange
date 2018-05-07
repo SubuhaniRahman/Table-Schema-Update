@@ -1,0 +1,1913 @@
+CREATE Procedure [dbo].[Script4ColumnsChange]
+
+(
+@TempTableName varchar(500),
+@TableName varchar(500),
+@TemptableStruct nvarchar(max)=''
+)
+
+As 
+
+Begin
+
+Set Nocount On
+
+	DECLARE @TranName VARCHAR(20);  
+	SELECT @TranName = 'CompareTable';  
+
+	Begin Try
+	
+	--=============================================[Begin Try]=================================================================================== [INDEX_1]
+
+		Begin Transaction @tranname
+		
+		--========================== Set Default Datas ==================================
+
+			Declare @Ansi int			Declare @padd int			Declare @war int			Declare @arith int			
+			
+			Declare @ConCa int			Declare @Quoted int			Declare @Num int
+			
+			Set @Ansi=0					SET @padd = 0 				SET @war = 0				SET @arith = 0 			
+			
+			SET @ConCa = 0				SET @Quoted = 0				SET @Num = 0
+
+			IF ( (32 & @@options) = 32 ) Set @Ansi=1 
+			
+			IF ( (256 & @@OPTIONS) = 256 ) SET @Quoted = 1 
+			
+			IF ( (8192 & @@OPTIONS) = 8192 ) SET @Num = 1 
+	
+			IF ( (64 & @@OPTIONS) = 64 ) SET @arith = 1 
+			
+			IF ( (4096 & @@OPTIONS) = 4096 ) SET @ConCa = 1 
+			
+			IF ( (8 & @@OPTIONS) = 8 ) SET @war = 1 
+
+			IF ( (16 & @@OPTIONS) = 16 ) SET @padd = 1 
+			
+			SET NUMERIC_ROUNDABORT OFF
+			
+			SET ANSI_NULLS, ANSI_PADDING, ANSI_WARNINGS, ARITHABORT, CONCAT_NULL_YIELDS_NULL, QUOTED_IDENTIFIER ON
+
+		--========================== End Default Datas ==================================
+			
+			Declare @sqlexecuteqry varchar(max)
+			
+			Set @sqlexecuteqry=''
+			
+	--================================ Creating Table Structure As Global =======================================================================  [INDEX_3]
+	
+
+			If Exists (Select * from  INFORMATION_SCHEMA .TABLES where TABLE_NAME=@TableName )
+			
+			Begin
+			
+			EXEC sp_executesql @TemptableStruct 
+
+			
+	--================================ Getting Structure of Both Old And New Tables =============================================================		
+	
+			Select * into #tempNew from(
+			
+			Select distinct(c.name),column_id,c.system_type_id,c.user_type_id,c.max_length,isnull(isc.CHARACTER_MAXIMUM_LENGTH,c.max_length) as MaxLen,c.precision,c.scale,c.collation_name,c.is_nullable,
+			
+			c.is_ansi_padded,c.is_rowguidcol,c.is_identity,c.is_computed,c.is_filestream,c.is_replicated,c.is_non_sql_subscribed,c.is_merge_published,
+			
+			c.is_dts_replicated,c.is_xml_document,c.xml_collection_id,c.default_object_id,c.rule_object_id
+			
+			--,c.is_sparse,c.is_column_set 
+			
+			from sys .columns c left join sys.tables t on c.object_id =t.object_id left join sys.indexes i on i.object_id =t.object_id 
+			
+			Left join information_schema.columns isc on isc.table_name=t.name and isc.column_name=c.name
+			
+			 where t.object_id=Object_id(@TempTableName)
+			 
+			)Tn
+			
+
+			Select * into #tempOld from(
+			
+			Select 
+			
+			distinct(c.name),column_id,c.system_type_id,c.user_type_id,c.max_length,isnull(isc.CHARACTER_MAXIMUM_LENGTH,c.max_length) as MaxLen,c.precision,c.scale,c.collation_name,c.is_nullable,
+			
+			c.is_ansi_padded,c.is_rowguidcol,c.is_identity,c.is_computed,c.is_filestream,c.is_replicated,c.is_non_sql_subscribed,c.is_merge_published,
+			
+			c.is_dts_replicated,c.is_xml_document,c.xml_collection_id,c.default_object_id,c.rule_object_id
+			--,c.is_sparse,c.is_column_set 
+			
+			from sys .columns c left join sys.tables t on c.object_id =t.object_id left join sys.indexes i on i.object_id =t.object_id 
+			
+			Left join information_schema.columns isc on isc.table_name=t.name and isc.column_name=c.name
+			
+			where t.object_id=Object_id(@TableName)
+			
+			)ToT
+			
+	--================================================ INDEXES CHECKING==========================================================================
+			
+			Select * into #tempIndexNew from(
+			
+			Select distinct (i.name) ,i.index_id,i.type,i.type_desc,i.is_unique,i.data_space_id,i.ignore_dup_key,i.is_primary_key,
+			
+			i.is_unique_constraint,i.fill_factor,i.is_padded,i.is_disabled,i.is_hypothetical
+			
+			,i.allow_row_locks,i.allow_page_locks,
+			
+			--i.has_filter,i.filter_definition,
+			
+			sic.column_id,sic.is_descending_key 
+			
+			from sys .columns c left join sys.tables t on c.object_id =t.object_id 
+			
+			left join sys.indexes i on i.object_id =t.object_id  
+			
+			left join  sys.index_columns sic on sic.object_id =c.object_id and i.index_id=sic.index_Id 
+			
+			where t.object_id=Object_id(@TempTableName) and i.index_id <>0
+			
+			)Tin
+			
+
+			Select * into #tempIndexOld from(
+			
+			Select distinct (i.name),i.index_id,i.type,i.type_desc,i.is_unique,i.data_space_id,i.ignore_dup_key,i.is_primary_key,
+			
+			i.is_unique_constraint,i.fill_factor,i.is_padded,i.is_disabled,i.is_hypothetical
+				
+			,i.allow_row_locks,i.allow_page_locks,
+			
+			--i.has_filter,i.filter_definition,
+			
+			sic.column_id,sic.is_descending_key 
+			
+			from sys .columns c left join sys.tables t on c.object_id =t.object_id 
+			
+			left join sys.indexes i on i.object_id =t.object_id 
+			
+			left join  sys.index_columns sic on sic.object_id =c.object_id and i.index_id=sic.index_Id 
+			
+			where t.object_id=Object_id(@TableName) and i.index_id <>0
+			
+			)TioT
+						
+			
+			Select * into #tempDef from (Select * from information_schema.columns where table_name=@Temptablename )xyz
+			
+	--======================================================[Primary key Change Check]=========================================================
+			
+
+			if @sqlexecuteqry <>'' Begin Set @sqlexecuteqry='' End
+			
+			Declare @PKCount int
+			
+			Declare @PKColCount int
+			
+			Declare @PkColumnDataCheck int
+			
+			Declare @PkColumnnullCheck int
+			
+			Declare @PkColumnLengthCheck int
+			
+			Set @PKCount=0
+			
+			Set @PKColCount=0
+			
+			Select @PKCount=((SELECT count(*) as val1 from #tempIndexOld where Is_primary_key=1 ) - (SELECT count(*) as val2 from #tempIndexNew where Is_primary_key=1 ))
+
+			Select @PKColCount=((Select Count(*) from  #tempIndexNew where is_primary_key =1) -(Select Count(*) from #tempIndexOld tt  join  #tempIndexNew ttt on ttt.is_primary_key =1  and  tt.is_primary_key =1 
+
+			where (Select b.COLUMN_NAME from information_schema.columns b where table_name=@Temptablename and Ordinal_position= tt.column_id)=(Select ab.Column_Name from information_schema.columns ab where table_name=@Temptablename and Ordinal_position= ttt.column_id ))
+
+			)
+
+			
+		--===============================================[Primary Column Check For DataType,Length,Null ]================================================
+
+			Set @PkColumnDataCheck=(Select Count (*) from #tempnew ntn
+
+								join #tempOld tot on tot.name=ntn.name and tot.user_type_id <> ntn.user_type_id
+
+								inner join  sys.types t on t.user_type_id =ntn.user_type_id 
+
+								inner Join INFORMATION_SCHEMA.KEY_COLUMN_USAGE iskc on iskc.TABLE_NAME=@tablename and iskc.COLUMN_NAME=ntn.name)
+
+			Set @PkColumnLengthCheck=(Select count(*) from #tempnew ntn
+
+								join #tempOld tot on tot.name=ntn.name and tot.user_type_id =ntn.user_type_id and  tot.MaxLen <> ntn.MaxLen
+
+								inner join  sys.types t on t.user_type_id =ntn.user_type_id
+
+								inner Join INFORMATION_SCHEMA.KEY_COLUMN_USAGE iskc on iskc.TABLE_NAME=@tablename and iskc.COLUMN_NAME=ntn.name)
+
+			Set @PkColumnnullCheck= (Select Count(*) 	from #tempnew ntn
+
+								join #tempOld tot on tot.name=ntn.name and tot.user_type_id =ntn.user_type_id and  tot.MaxLen = ntn.MaxLen and tot.is_nullable <>ntn.IS_NULLABLE and tot.name =ntn.name
+
+								inner join  sys.types t on t.user_type_id =ntn.user_type_id
+
+								inner Join INFORMATION_SCHEMA.KEY_COLUMN_USAGE iskc on iskc.TABLE_NAME=@tablename and iskc.COLUMN_NAME=ntn.name)
+
+			--======================================================[Check DAta To Drop ]==================================================================
+
+			--If @PKCount <>0 or @PKColCount <>0 or isnull(@PkColumnDataCheck,0)>=1 or isnull(@PkColumnLengthCheck,0)>=1 or isnull(@PkColumnnullCheck,0)>=1
+			
+			--	Begin
+			
+			--=========By Murali on 16/08/17 For PrimaryKey Issue==================
+
+				--===========Move OLD PrimaryKey Constraint====================
+
+				   IF OBJECT_ID('TempDB.dbo.#TempConstraintkeys4Old') IS NOT NULL
+
+					BEGIN
+
+						DROP TABLE #TempConstraintkeys4Old
+
+					END
+
+
+					IF OBJECT_ID('TempDB.dbo.#TempPrimaryKeys4OLD') IS NOT NULL
+
+					BEGIN
+
+						DROP TABLE #TempPrimaryKeys4OLD
+
+					END
+
+
+					CREATE TABLE #TempConstraintkeys4Old 
+
+					(Constraint_Type VARCHAR(1000) NULL,Constraint_Name VARCHAR(1000) NULL,Delete_Action VARCHAR(500) NULL,Update_Action VARCHAR(500) NULL,
+
+					Status_enabled VARCHAR(500) NULL,Status_for_Replication VARCHAR(500) NULL,Constraint_keys VARCHAR(500) NULL)
+
+
+					CREATE TABLE #TempPrimaryKeys4OLD(ID BIGINT,Constraint_Keys VARCHAR(500) NULL)
+
+					INSERT INTO #TempConstraintkeys4Old EXEC sp_helpconstraint @TableName ,'nomsg'
+
+
+					INSERT INTO #TempPrimaryKeys4OLD  SELECT ROW_NUMBER() OVER(ORDER BY Constraint_Keys) AS ID, Constraint_Keys FROM #TempConstraintkeys4Old WITH(NOLOCK) WHERE Constraint_Type in('PRIMARY KEY (clustered)','PRIMARY KEY (non-clustered)','UNIQUE (clustered
+)','UNIQUE (non-clustered)') ORDER BY #TempConstraintkeys4Old.Constraint_Keys
+
+
+				 --===========Move NEW PrimaryKey Constraint====================
+
+
+
+					IF OBJECT_ID('TempDB.dbo.#TempConstraintkeys4New') IS NOT NULL
+
+					BEGIN
+
+						DROP TABLE #TempConstraintkeys4New
+
+					END
+
+
+
+					IF OBJECT_ID('TempDB.dbo.#TempPrimaryKeys4New') IS NOT NULL
+
+					BEGIN
+
+						DROP TABLE #TempPrimaryKeys4New
+
+					END
+
+					CREATE TABLE #TempConstraintkeys4New 
+
+					(Constraint_Type VARCHAR(1000) NULL,Constraint_Name VARCHAR(1000) NULL,Delete_Action VARCHAR(500) NULL,Update_Action VARCHAR(500) NULL,
+
+					Status_enabled VARCHAR(500) NULL,Status_for_Replication VARCHAR(500) NULL,Constraint_keys VARCHAR(500) NULL)
+
+					CREATE TABLE #TempPrimaryKeys4New(ID BIGINT,Constraint_Keys VARCHAR(500) NULL,Constraint_Type VARCHAR(1000) NULL,Constraint_Name VARCHAR(1000) NULL,PKType VARCHAR(100) NULL,KeyOrder VARCHAR(50) NULL)
+					
+					INSERT INTO #TempConstraintkeys4New Exec sp_helpconstraint @TempTableName,'nomsg'
+
+					INSERT INTO #TempPrimaryKeys4New(ID,Constraint_Keys,Constraint_Type,Constraint_Name,PKType,KeyOrder) 
+					Select ROW_NUMBER() OVER(ORDER BY Constraint_keys) As ID,Constraint_Keys,Constraint_Type,Constraint_Name,REPLACE(REPLACE(Constraint_Type,' (non-clustered)',''),' (clustered)','') AS PKType,(CASE WHEN CHARINDEX(Constraint_Keys,'(-)')>0 THEN 'DESC' ELSE 'ASC' END) AS KeyOrder FROM #TempConstraintkeys4New WITH(NOLOCK) WHERE Constraint_Type in('PRIMARY KEY (clustered)','PRIMARY KEY (non-clustered)','UNIQUE (clustered)','UNIQUE (non-clustered)')  Order By #TempConstraintkeys4New.Constraint_keys
+										
+				   --Select NewPK.ID,Isnull(NewPK.Constraint_keys,'') as NewPKConst,Isnull(OLDPK.Constraint_Keys,'') As OLDPKConst From #TempPrimaryKeys4New NewPK With(Nolock)
+
+				    --Left Outer Join #TempPrimaryKeys4OLD OLDPK with(Nolock) On NewPK.ID=OLDPK.ID
+				   --Where Isnull(NewPK.Constraint_Keys,'')<>isnull(OLDPK.Constraint_Keys,'')
+				   
+					DECLARE @DiffPKConstraint AS INT 
+
+					SET @DiffPKConstraint=0
+			 		 
+
+					IF @PKCount <>0 or @PKColCount <>0
+
+						BEGIN
+
+							SET @DiffPKConstraint=1
+
+					END
+
+					ELSE
+
+						BEGIN
+
+							SET @DiffPKConstraint=(Select ISNULL(COUNT(*),0) From #TempPrimaryKeys4New NewPK WITH(NOLOCK)
+
+							LEFT OUTER JOIN #TempPrimaryKeys4OLD OLDPK WITH(NOLOCK) ON NewPK.ID=OLDPK.ID
+
+							WHERE ISNULL(NewPK.Constraint_Keys,'')<>ISNULL(OLDPK.Constraint_Keys,''))
+
+					END
+
+					
+			--======================================================[Drop Table Primary Key Constraint]==================================================
+			
+					IF @DiffPKConstraint>0
+			
+					BEGIN
+			
+							SELECT  @sqlexecuteqry= N' ALTER TABLE ' + QUOTENAME(s.name) + N'.'  + QUOTENAME(t.name) + N' DROP CONSTRAINT '  + QUOTENAME(c.name) + ';' --as OrgTableConsDrop
+
+							FROM sys.objects AS c INNER JOIN sys.tables AS t ON c.parent_object_id = t.[object_id] and t.object_id=object_id(@tablename)
+
+							INNER JOIN sys.schemas AS s ON t.[schema_id] = s.[schema_id] WHERE c.[type] IN ('PK','UQ') ORDER BY c.[type];
+
+							If ISNULL(@sqlexecuteqry,'') <>''
+					
+								Begin
+						
+									Print 'Executing PK Drop Cons qry..' + @sqlexecuteqry
+
+									exec (@sqlexecuteqry)
+							
+									Print 'Executed qry..' + @sqlexecuteqry
+							
+								Set @sqlexecuteqry=''
+						
+							End	
+				
+					END
+
+			--======================================================[CHECK INDEX BEFORE DROP]===========================================================
+
+					Declare @IkCount int
+		
+		--======================================================[Drop Table Index Constraint]========================================================
+		
+					Declare @IndexName varchar(8000)
+
+					if @sqlexecuteqry <>'' Begin Set @sqlexecuteqry='' End
+
+					Set @IndexName=''
+
+					-- =================================================== CURSOR ============================================================= [INDEX5]
+					DECLARE IndexBased_LU CURSOR	FOR 
+
+					SELECT N'Drop Index ' + name +' ON '+ @TableName as OrgTableIndexDrop ,name
+
+					from sys.indexes I 
+
+					where object_id =object_id(@TableName) and Type=2
+
+					OPEN IndexBased_LU
+
+					FETCH NEXT FROM IndexBased_LU INTO @sqlexecuteqry,@IndexName
+
+						WHILE @@Fetch_status = 0
+
+							BEGIN
+							
+								If @IndexName<>'' 
+								
+									Begin
+
+										Declare @tempnewCount int
+										
+										Declare @tempTotCount int
+										
+										Declare @ColumnNullCount int
+										
+										Declare @ColumnDataCount int
+										
+										Declare @ColumnLengthCount int
+										
+										Set @tempnewCount =(Select Count(*) from  #tempIndexNew where is_primary_key =0 and Name=@IndexName )
+																									
+										Set @tempTotCount =(Select Count(*) from #tempIndexOld tt  join  #tempIndexNew ttt on ttt.is_primary_key =0  and  tt.is_primary_key =0 
+										
+															where  tt.name=@IndexName and ttt.Name=@IndexName   and 
+											
+															(Select b.COLUMN_NAME from information_schema.columns b 
+											
+															where table_name=@Temptablename and Ordinal_position= tt.column_id)=(Select ab.Column_Name from information_schema.columns ab 
+												
+															where table_name=@Temptablename and Ordinal_position= ttt.column_id ))
+
+
+										Set @IKCount=(@tempnewCount -@tempTotCount)		
+										
+										Set @IkCount =ISNULL (@iKcount,0)
+
+										Set @ColumnNullCount= (Select Count(*) from sys.indexes i
+
+																	inner join Sys.index_columns ic on i.object_id =ic.object_id
+																	
+																	inner join #tempnew ntn on ic.Column_id=ntn.column_id 
+																	
+																	join #tempOld tot on tot.name=ntn.name and tot.user_type_id =ntn.user_type_id and  tot.MaxLen = ntn.MaxLen and tot.is_nullable <>ntn.IS_NULLABLE and tot.name =ntn.name
+																																		
+																	inner join  sys.types t on t.user_type_id =ntn.user_type_id 
+																	
+																	where i.object_id =object_id(@TableName) and Type=2)
+																								
+
+										Set @ColumnDataCount=(Select Count(*) from sys.indexes i
+																				
+																	inner join Sys.index_columns ic on i.object_id =ic.object_id
+																															
+																	inner join  #tempnew ntn on ic.Column_id=ntn.column_id 
+
+																	join #tempOld tot on tot.name=ntn.name and tot.user_type_id <> ntn.user_type_id
+
+																	inner join  sys.types t on t.user_type_id =ntn.user_type_id 
+
+																	inner Join INFORMATION_SCHEMA.KEY_COLUMN_USAGE iskc on iskc.TABLE_NAME=@tablename and iskc.COLUMN_NAME=ntn.name)
+
+										Set @ColumnLengthCount=(Select Count(*) from sys.indexes i
+
+																	inner join Sys.index_columns ic on i.object_id =ic.object_id
+
+																	inner join  #tempnew ntn  on ic.Column_id=ntn.column_id 
+
+																	join #tempOld tot on tot.name=ntn.name and tot.user_type_id =ntn.user_type_id and  tot.MaxLen <> ntn.MaxLen
+
+																	inner join  sys.types t on t.user_type_id =ntn.user_type_id
+																	
+																	inner Join INFORMATION_SCHEMA.KEY_COLUMN_USAGE iskc on iskc.TABLE_NAME=@tablename and iskc.COLUMN_NAME=ntn.name)
+																	
+										If isnull(@IKcount,0)=0 and @temptotCount<>0 or isnull(@ColumnNullCount,0)=1
+										
+											Begin 
+											
+												Select @IKcount=Count(*) From #tempIndexOld where is_primary_key =0 and Name=@IndexName 
+												
+										End
+
+										If @IKcount<>0 
+										
+											Begin
+																							
+												if @sqlexecuteqry <>''
+
+													Begin
+
+														--Print 'Executing Drop Index Cons qry..' + @sqlexecuteqry
+																												
+														--exec (@sqlexecuteqry)
+														
+														--Print 'Executed qry..' + @sqlexecuteqry
+
+														Set @sqlexecuteqry=''
+
+												End
+
+										End
+										
+								End
+
+								FETCH NEXT FROM IndexBased_LU INTO @sqlexecuteqry,@IndexName
+								
+						END
+
+					CLOSE IndexBased_LU
+				
+					DEALLOCATE IndexBased_LU
+
+
+			-- =================================================== CURSOR ============================================================= [INDEX5]
+
+
+			--===================================================[New_Columns]===========================================================================
+			
+					If @sqlexecuteqry <>'' Begin Set @sqlexecuteqry='' End
+
+			-- =================================================== CURSOR ============================================================= [INDEX6]
+
+					DECLARE NCBased_LU CURSOR	FOR 
+
+
+					Select  'Alter Table ' + @TableName + ' Add [' + tn.name + '] ' + t.name + ' ' +
+
+
+					(Case t.name	When 'sql_variant'   Then ''  When 'text'  Then ''
+
+
+									When 'decimal'      Then '(' + Cast( tn.precision As varchar ) + ', ' + Cast( tn.scale As varchar ) + ') '
+
+
+									When 'numeric' Then '(' + Cast( tn.precision As varchar ) + ', ' + Cast( tn.scale As varchar ) + ')'
+
+
+									when 'int'			Then '' When 'bigint'		Then '' When 'datetime'		Then ''  When 'tinyint'		Then ''
+
+
+									When 'Smallint'		Then ''  When 'bit'		Then ''	When 'float'		Then ''		When 'image' Then ''
+
+
+									When 'smalldatetime'		Then ''	When 'real'		Then ''
+
+
+									Else Coalesce('('+ Case When tn.MaxLen = -1 Then 'MAX' Else Cast(tn.MaxLen As VarChar) End + ')','') End) + ' ' + 
+									
+
+					(Case When tn.is_identity=1 Then 'IDENTITY(' + (Select cast(sic.seed_value as varchar)+ ',' +  cast(sic.increment_value as varchar) + ')'  
+														
+					from sys.identity_columns sic where sic.object_id=object_Id(@TempTableName))
+									
+					Else '' End ) + ' ' +
+									
+					(Case When tn.IS_NULLABLE = 0 Then 'NOT ' Else '' End ) + 'NULL ' + '' +--As [New_Columns]
+					
+					(Case When isnull(td.Column_Default,'') = '' Then ''  Else 'Default ' + td.Column_Default + ' '  End )  
+									
+					From #tempnew tn inner join  sys.types t on t.user_type_id =tn.user_type_id 
+										
+					and tn.name in (Select tn.name from #tempnew tn where tn.name not in(Select too.name from #tempOld too))
+										
+					inner join #tempDef td on  tn.Column_id=td.ORDINAL_POSITION 
+																		
+					order by tn.Column_id
+					
+					OPEN NCBased_LU
+
+						FETCH NEXT FROM NCBased_LU INTO @sqlexecuteqry
+
+							WHILE @@Fetch_status = 0
+
+								BEGIN
+
+									If @sqlexecuteqry <>''
+			
+										Begin
+				
+											Print 'New Executing qry..' + @sqlexecuteqry
+
+											exec (@sqlexecuteqry)
+					
+											Print 'Executed qry..' + @sqlexecuteqry
+					
+										Set @sqlexecuteqry=''
+				
+									End
+			
+								FETCH NEXT FROM NCBased_LU INTO @sqlexecuteqry
+
+							End
+
+					IF (SELECT CURSOR_STATUS('global','NCBased_LU')) >= -1
+
+						BEGIN
+			
+							IF (SELECT CURSOR_STATUS('global','NCBased_LU')) > -1
+											
+								BEGIN
+								
+									CLOSE NCBased_LU
+
+							END
+								
+							DEALLOCATE NCBased_LU
+					END
+
+				-- =================================================== CURSOR ============================================================= [INDEX6]
+
+
+		--======================================================[Drop Default Key Constraint]===================================================	
+
+		-- =================================================== CURSOR ============================================================= [INDEX7]
+
+					If @sqlexecuteqry <>'' Begin Set @sqlexecuteqry='' End
+			
+					DECLARE DFBased_LU CURSOR	FOR 
+
+					Select N' ALTER TABLE ' + @TableName  + N'  DROP CONSTRAINT ' + Quotename( sdc.name ) + ';' From sys.all_columns sc 
+
+					inner join  sys.tables  t ON   sc.object_id =t.object_id 
+
+					and t.object_id=object_id(@tablename) 
+
+					INner JOIN  sys.default_constraints sdc on sdc.parent_object_id =t.object_id and sc.default_object_id = sdc.object_id
+
+					inner join (select column_id ,definition,sc.name  From sys.all_columns sc inner join  sys.tables  t ON   sc.object_id =t.object_id 
+
+					and t.object_id=object_id(@Temptablename) 
+
+					INner JOIN  sys.default_constraints sdc on sdc.parent_object_id =t.object_id and sc.default_object_id = sdc.object_id
+
+					)x on x.name = sc.name
+
+					--and sdc.[definition]<>x.[definition]
+
+					and Replace(replace(sdc.[definition],'(',''),')','') <>  Replace(replace(x.[definition],'(',''),')','')
+
+					union all
+					
+
+					Select N' ALTER TABLE ' + @TableName  + N'  DROP CONSTRAINT ' + Quotename( sdc.name ) + ';' From sys.all_columns sc 
+
+					inner join  sys.tables  t ON   sc.object_id =t.object_id 
+
+					and t.object_id=object_id(@tablename) 
+
+					INner JOIN  sys.default_constraints sdc on sdc.parent_object_id =t.object_id and sc.default_object_id = sdc.object_id
+								
+					Left Outer join (select column_id ,definition,sc.name  From sys.all_columns sc inner join  sys.tables  t ON   sc.object_id =t.object_id 
+
+					and t.object_id=object_id(@Temptablename) 
+
+					INner JOIN  sys.default_constraints sdc on sdc.parent_object_id =t.object_id and sc.default_object_id = sdc.object_id
+
+					)x on x.name = sc.name
+
+					where isnull(x.name,'')=''
+			
+					OPEN DFBased_LU
+
+					FETCH NEXT FROM DFBased_LU INTO @sqlexecuteqry
+		
+						WHILE @@Fetch_status = 0
+
+							BEGIN
+
+								If @sqlexecuteqry <>''
+								
+									Begin
+
+										Print 'DF Executing qry..' + @sqlexecuteqry
+
+										exec (@sqlexecuteqry)
+
+										Print 'Executed qry..' + @sqlexecuteqry
+
+										Set @sqlexecuteqry=''
+
+									End
+
+								FETCH NEXT FROM DFBased_LU INTO @sqlexecuteqry
+
+						End
+
+					CLOSE DFBased_LU
+
+					DEALLOCATE DFBased_LU
+
+					Declare @Cname varchar(500)
+
+					Set @Cname =''
+
+					Declare @testQuery varchar(max)
+
+					Set @testQuery =''
+
+
+		-- =================================================== CURSOR ============================================================= [INDEX7]
+
+	--===================================================[Length_Change]=========================================================================
+
+
+					If @sqlexecuteqry <>'' Begin Set @sqlexecuteqry ='' END
+
+					Select * into #IndexLC From (
+
+					SELECT N'Drop Index ' + name +' ON '+ @Tablename as OrgTableIndexDrop
+
+					from sys.indexes I
+
+					Join 
+
+					Sys.index_columns IC 
+				
+					On Ic.Object_id=I.Object_id and Ic.index_id=I.Index_id
+				
+					join 
+				
+					(Select Isnull(tot.Column_Id ,0) as Column_Id from #tempnew ntn
+
+					join #tempOld tot on tot.name=ntn.name and tot.user_type_id =ntn.user_type_id and  tot.MaxLen <> ntn.MaxLen
+
+					and tot.MaxLen < ntn.MaxLen
+
+					inner join  sys.types t on t.user_type_id =ntn.user_type_id) LNIN
+
+					On LNIN.Column_id=Ic.column_id 
+				
+					where I.object_id =object_id(@TableName) and I.Type=2)ILC
+				
+					Select @sqlexecuteqry= isnull(OrgTableIndexDrop,'') from #IndexLC
+				
+					while @sqlexecuteqry<>''
+				
+					Begin
+								
+						Print 'Length ' + @sqlexecuteqry 
+
+						Exec (@sqlexecuteqry)
+
+						Print 'Length1 ' + @sqlexecuteqry 
+
+						Delete From #IndexLC where OrgTableIndexDrop= @sqlexecuteqry
+
+						Set @sqlexecuteqry=''
+					
+						Select @sqlexecuteqry= isnull(OrgTableIndexDrop,'') from #IndexLC
+
+
+					End
+				
+			
+				--=========================================== [ Primary Key Check  Length_Change Start] ======================================================
+
+				-- =================================================== CURSOR ============================================================= [INDEX8]
+
+					If exists(Select * from #TempPrimaryKeys4old PKC join 
+				
+					(Select Isnull(tot.Column_Id ,0) as Column_ID,Tot.Name from #tempnew ntn
+							join #tempOld tot on 
+							tot.name =ntn.name  
+							and tot.user_type_id =ntn.user_type_id 
+							and  tot.MaxLen <> ntn.MaxLen
+							and tot.MaxLen < ntn.MaxLen
+							inner join  sys.types t on t.user_type_id =ntn.user_type_id) DTIN
+					On DTIN.Name =PKC.constraint_Keys COLLATE SQL_Latin1_General_CP1_CI_AS )				
+
+						Begin
+
+							If  @DiffPKConstraint=0
+
+								Begin
+
+									SELECT  @sqlexecuteqry= N' ALTER TABLE ' + QUOTENAME(s.name) + N'.'  + QUOTENAME(t.name) + N' DROP CONSTRAINT '  + QUOTENAME(c.name) + ';' --as OrgTableConsDrop
+
+									FROM sys.objects AS c INNER JOIN sys.tables AS t ON c.parent_object_id = t.[object_id] and t.object_id=object_id(@tablename)
+
+									INNER JOIN sys.schemas AS s ON t.[schema_id] = s.[schema_id] WHERE c.[type] IN ('PK','UQ') ORDER BY c.[type];
+
+									If ISNULL(@sqlexecuteqry,'') <>''
+						
+										Begin
+
+											Print 'Executing PK Drop Cons qry..' + @sqlexecuteqry
+
+											exec (@sqlexecuteqry)
+
+											Print 'Executed qry..' + @sqlexecuteqry
+										
+											Set @sqlexecuteqry=''
+
+											Set @DiffPKConstraint=1
+
+									End	
+
+							End
+
+					End
+				-- =================================================== CURSOR ============================================================= [INDEX8]
+
+				--=========================================== [ Primary Key Check  Length_Change End] ======================================================
+				
+
+					If @sqlexecuteqry <>'' Begin Set @sqlexecuteqry='' End
+
+					-- =================================================== CURSOR ============================================================= [INDEX9]
+			
+					DECLARE LCBased_LU CURSOR	FOR 		
+			
+					Select  'Alter Table ' + @TableName + ' Alter Column [' + ntn.name + '] ' + t.name +
+			
+					(Case t.name	When 'sql_variant' Then '' When 'text' Then ''
+			
+									When 'decimal' Then '(' + Cast( ntn.precision As varchar ) + ', ' + Cast( ntn.scale As varchar ) + ') '
+							
+									When 'numeric' Then '(' + Cast( ntn.precision As varchar ) + ', ' + Cast( ntn.scale As varchar ) + ')'
+							
+									when 'int'			Then '' When 'bigint'		Then '' When 'datetime'		Then ''  When 'tinyint'		Then ''
+							
+									When 'Smallint'		Then ''  When 'bit'		Then ''	When 'float'		Then ''	When 'image' Then ''
+							
+									When 'smalldatetime'		Then ''	When 'real'		Then ''
+														
+									Else Coalesce( '(' + Case When ntn.MaxLen = -1 Then 'MAX' Else Cast(ntn.MaxLen As VarChar ) End +')' , '' ) End) + ' ' +			 
+
+					(Case			When ntn.is_identity=1 Then 'IDENTITY(' +(Select cast(sic.seed_value as varchar)+ ',' + cast(sic.increment_value as varchar) + ')'  
+
+									from sys.identity_columns sic where sic.object_id=object_Id(@TempTableName))
+							
+									Else '' End ) + ' ' +
+							
+					(Case			When ntn.IS_NULLABLE = 0 Then 'NOT ' Else '' End ) + 'NULL ' + ' '  --As [Length_chng] 
+			
+										,ntn.name
+
+										from #tempnew ntn
+								
+										join #tempOld tot on tot.name=ntn.name and tot.user_type_id =ntn.user_type_id and  tot.MaxLen <> ntn.MaxLen
+								
+										and tot.MaxLen < ntn.MaxLen
+								
+										inner join  sys.types t on t.user_type_id =ntn.user_type_id
+								
+					OPEN LCBased_LU
+
+					FETCH NEXT FROM LCBased_LU INTO @sqlexecuteqry,@Cname
+					
+						WHILE @@Fetch_status = 0
+						
+							BEGIN
+							
+								If @sqlexecuteqry <>''
+								
+									Begin
+									
+										Set @testQuery=(Select N' ALTER TABLE ' + @TableName  + N'  DROP CONSTRAINT ' + Quotename( sdc.name ) + ';' 
+
+														From sys.all_columns sc 
+
+														inner join  sys.tables  t ON   sc.object_id =t.object_id  and sc.name=@Cname
+
+														and t.object_id=object_id(@tablename) 
+
+														INner JOIN  sys.default_constraints sdc on sdc.parent_object_id =t.object_id and sc.default_object_id = sdc.object_id)
+
+														if @testQuery<>''
+
+														Begin
+
+														exec (@testQuery)
+
+														End
+
+										Print 'Length Executing qry..' + @sqlexecuteqry
+						
+										exec (@sqlexecuteqry)
+						
+										Print 'Executed qry..' + @sqlexecuteqry
+
+										Set @sqlexecuteqry=''
+						
+								End
+
+								FETCH NEXT FROM LCBased_LU INTO @sqlexecuteqry,@Cname
+
+						End
+				
+					CLOSE LCBased_LU
+				
+					DEALLOCATE LCBased_LU
+
+					-- =================================================== CURSOR ============================================================= [INDEX9]
+
+			--===================================================[NULL_CHANGE]==========================================================================
+					
+	
+					if @sqlexecuteqry <>'' Begin Set @sqlexecuteqry='' End
+	
+					Select * into #IndexNC From (
+
+					SELECT N'Drop Index ' + name +' ON '+ @Tablename as OrgTableIndexDrop
+
+					from sys.indexes I
+
+					Join 
+
+					Sys.index_columns IC 
+
+					On Ic.Object_id=I.Object_id and Ic.index_id=I.Index_id
+
+					join 
+
+					(Select Isnull(tot.Column_Id ,0) as Column_ID from #tempnew ntn
+
+									join #tempOld tot on tot.name=ntn.name and tot.user_type_id =ntn.user_type_id 
+
+									and  tot.MaxLen = ntn.MaxLen and tot.is_nullable <>ntn.IS_NULLABLE and tot.name =ntn.name
+
+									inner join  sys.types t on t.user_type_id =ntn.user_type_id
+
+									and ntn.IS_NULLABLE=1) NCIN
+
+					On NCIN.Column_id=Ic.column_id 
+
+					where I.object_id =object_id(@TableName) and I.Type=2)INC
+
+					Select @sqlexecuteqry= isnull(OrgTableIndexDrop,'') from #IndexNC
+
+					while @sqlexecuteqry<>''
+
+					Begin
+
+						Print 'NUll_change Index ' + @sqlexecuteqry 
+
+						Exec (@sqlexecuteqry)
+
+						Delete From #IndexNC where OrgTableIndexDrop= @sqlexecuteqry
+
+					Set @sqlexecuteqry=''
+
+						Select @sqlexecuteqry= isnull(OrgTableIndexDrop,'') from #IndexNC
+
+					End
+
+
+	--=========================================== [ Primary Key Check  NULL_CHANGE Start] ======================================================
+
+					If exists(Select * from #TempPrimaryKeys4old PKC
+				
+					join 
+				
+					(Select Isnull(tot.Column_Id ,0) as Column_ID,Tot.Name from #tempnew ntn
+								join #tempOld tot on tot.name=ntn.name and tot.user_type_id =ntn.user_type_id 
+								and  tot.MaxLen = ntn.MaxLen and tot.is_nullable <>ntn.IS_NULLABLE and tot.name =ntn.name
+								inner join  sys.types t on t.user_type_id =ntn.user_type_id
+								and ntn.IS_NULLABLE=1) DTIN
+					On DTIN.Name=PKC.constraint_Keys  COLLATE SQL_Latin1_General_CP1_CI_AS )		
+				
+						Begin
+
+							if  @DiffPKConstraint=0
+
+								Begin
+
+								SELECT  @sqlexecuteqry= N' ALTER TABLE ' + QUOTENAME(s.name) + N'.'  + QUOTENAME(t.name) + N' DROP CONSTRAINT '  + QUOTENAME(c.name) + ';' --as OrgTableConsDrop
+
+								FROM sys.objects AS c INNER JOIN sys.tables AS t ON c.parent_object_id = t.[object_id] and t.object_id=object_id(@tablename)
+
+								INNER JOIN sys.schemas AS s ON t.[schema_id] = s.[schema_id] WHERE c.[type] IN ('PK','UQ') ORDER BY c.[type];
+
+									If ISNULL(@sqlexecuteqry,'') <>''
+							
+										Begin
+							
+											Print 'Executing NULL_CHANGE_1 PK Drop Cons qry..' + @sqlexecuteqry
+
+												exec (@sqlexecuteqry)
+
+											Print 'Executed NULL_CHANGE_1 qry..' + @sqlexecuteqry
+								
+										Set @sqlexecuteqry=''
+
+										Set @DiffPKConstraint=1
+
+									End	
+
+							End
+
+					End
+
+				--=========================================== [ Primary Key Check  NULL_CHANGE End] ======================================================
+
+					if @sqlexecuteqry <>'' Begin Set @sqlexecuteqry='' End
+			
+			-- =================================================== CURSOR ============================================================= [INDEX10]
+
+
+					DECLARE NUCBased_LU CURSOR	FOR 	
+
+					Select  'Alter Table ' + @TableName + ' Alter Column [' + ntn.name + '] ' + t.name +
+
+					(Case t.name	When 'sql_variant' Then '' When 'text' Then ''
+
+										When 'decimal' Then '(' + Cast( ntn.precision As varchar ) + ', ' + Cast( ntn.scale As varchar ) + ') '
+
+										When 'numeric' Then '(' + Cast( ntn.precision As varchar ) + ', ' + Cast( ntn.scale As varchar ) + ')'
+
+										when 'int'			Then ''
+
+										when 'int'			Then '' When 'bigint'		Then '' When 'datetime'		Then ''	 When 'tinyint'		Then ''
+
+										When 'Smallint'		Then ''  When 'bit'		Then ''		When 'float'		Then ''	When 'image' Then ''
+
+										When 'smalldatetime'		Then ''	When 'real'		Then ''
+	
+										Else Coalesce( '(' + Case When ntn.MaxLen = -1 Then 'MAX' Else Cast(ntn.MaxLen As VarChar ) End +')' , '' ) End) + ' ' +			 
+							
+					(Case			When ntn.is_identity=1 Then 'IDENTITY(' +(Select cast(sic.seed_value as varchar)+ ',' + cast(sic.increment_value as varchar) + ')'  
+			
+					from sys.identity_columns sic where sic.object_id=object_Id(@TempTableName))
+							
+					Else '' End ) + ' ' +
+							
+					(Case			When ntn.IS_NULLABLE = 0 Then 'NOT ' Else '' End ) + 'NULL ' + ' '  --As [NULL_CHANGE] 
+			
+					,ntn.name
+			
+					from #tempnew ntn
+
+					join #tempOld tot on tot.name=ntn.name and tot.user_type_id =ntn.user_type_id and  tot.MaxLen = ntn.MaxLen and tot.is_nullable <>ntn.IS_NULLABLE and tot.name =ntn.name
+
+					inner join  sys.types t on t.user_type_id =ntn.user_type_id
+
+					and ntn.IS_NULLABLE=1
+
+					OPEN NUCBased_LU
+
+					FETCH NEXT FROM NUCBased_LU INTO @sqlexecuteqry,@Cname
+
+						WHILE @@Fetch_status = 0
+
+							BEGIN
+
+								If @sqlexecuteqry <>''
+
+									Begin
+
+										Set @testQuery=(Select N' ALTER TABLE ' + @TableName  + N'  DROP CONSTRAINT ' + Quotename( sdc.name ) + ';' 
+
+										From sys.all_columns sc 
+
+										inner join  sys.tables  t ON   sc.object_id =t.object_id  and sc.name=@Cname
+
+										and t.object_id=object_id(@tablename) 
+
+										INner JOIN  sys.default_constraints sdc on sdc.parent_object_id =t.object_id and sc.default_object_id = sdc.object_id)
+									
+										If @testQuery<>''
+
+											Begin
+
+												Print 'Test query ' +@testQuery
+
+												exec (@testQuery)
+
+										End
+			
+										Print 'Null Executing qry..' + @sqlexecuteqry
+										
+										exec (@sqlexecuteqry)
+										
+										Print 'Executed qry..' + @sqlexecuteqry
+
+										Set @sqlexecuteqry=''
+
+								End
+								
+							FETCH NEXT FROM NUCBased_LU INTO @sqlexecuteqry,@Cname
+
+						End
+						
+					CLOSE NUCBased_LU
+					
+					DEALLOCATE NUCBased_LU
+
+					Print 'Test query 2'
+				-- =================================================== CURSOR ============================================================= [INDEX10]
+
+				--======================================================== [Data_Types] =====================================================================
+								
+
+					if @sqlexecuteqry <>'' Begin Set @sqlexecuteqry='' End
+
+					Select * into #IndexDT From (
+					
+					SELECT N'Drop Index ' + name +' ON '+ @Tablename as OrgTableIndexDrop
+
+					from sys.indexes I
+
+					Join 
+
+					Sys.index_columns IC 
+
+					On Ic.Object_id=I.Object_id and Ic.index_id=I.Index_id
+
+					join 
+
+					(Select Isnull(tot.Column_Id ,0) as Column_ID  from #tempnew ntn
+
+					join #tempOld tot on tot.name=ntn.name and tot.user_type_id <> ntn.user_type_id
+
+					inner join  sys.types t on t.user_type_id =ntn.user_type_id) DTIN
+
+					On DTIN.Column_id=Ic.column_id 
+
+					where I.object_id =object_id(@TableName) and I.Type=2)IDT
+
+					Select @sqlexecuteqry= isnull(OrgTableIndexDrop,'') from #IndexDT
+				
+					while @sqlexecuteqry<>''
+
+					Begin
+				
+						Print 'DataType_change Index ' + @sqlexecuteqry 
+
+						Exec (@sqlexecuteqry)
+
+						Delete From #IndexDT where OrgTableIndexDrop= @sqlexecuteqry
+
+						Set @sqlexecuteqry=''
+
+						Select @sqlexecuteqry= isnull(OrgTableIndexDrop,'') from #IndexDT
+					End
+
+	
+				--===============================================================================================================================================================
+
+
+					If exists(Select * from #TempPrimaryKeys4old PKC
+				
+					join 
+								
+					(Select Isnull(tot.Column_Id ,0) as Column_ID,Tot.Name  from #tempnew ntn
+
+					join #tempOld tot on tot.name=ntn.name and tot.user_type_id <> ntn.user_type_id
+
+					inner join  sys.types t on t.user_type_id =ntn.user_type_id) DTIN
+
+					On DTIN.Name=PKC.constraint_Keys  COLLATE SQL_Latin1_General_CP1_CI_AS )				
+
+					Begin
+				
+						SELECT  @sqlexecuteqry= N' ALTER TABLE ' + QUOTENAME(s.name) + N'.'  + QUOTENAME(t.name) + N' DROP CONSTRAINT '  + QUOTENAME(c.name) + ';' --as OrgTableConsDrop
+
+						FROM sys.objects AS c INNER JOIN sys.tables AS t ON c.parent_object_id = t.[object_id] and t.object_id=object_id(@tablename)
+
+						INNER JOIN sys.schemas AS s ON t.[schema_id] = s.[schema_id] WHERE c.[type] IN ('PK','UQ') ORDER BY c.[type];
+
+						If ISNULL(@sqlexecuteqry,'') <>''
+					
+							Begin
+						
+								Print 'Executing PK Drop Cons qry..' + @sqlexecuteqry
+
+								If  @DiffPKConstraint=0
+
+									Begin
+
+										exec (@sqlexecuteqry)
+
+								End
+
+								Print 'Executed qry..' + @sqlexecuteqry
+							
+								Set @sqlexecuteqry=''
+
+								Set @DiffPKConstraint=1
+
+						End	
+					End
+											
+					if @sqlexecuteqry <>'' Begin Set @sqlexecuteqry='' End
+
+			-- =================================================== CURSOR ============================================================= [INDEX11]
+
+					DECLARE DTBased_LU CURSOR	FOR 	
+			
+					Select  'Alter Table ' + @TableName +' Alter Column [' + ntn.name + ']  ' + t.name + 
+	
+					(Case t.name	When 'sql_variant' Then ''  When 'text' Then ''
+
+									When 'decimal' Then '(' + Cast( ntn.precision As varchar ) + ', ' + Cast( ntn.scale As varchar ) + ')'
+
+									When 'numeric' Then '(' + Cast( ntn.precision As varchar ) + ', ' + Cast( ntn.scale As varchar ) + ')'
+
+									when 'int'			Then '' When 'bigint'  Then '' When 'datetime'	Then ''   When 'tinyint'		Then ''
+
+									 When 'Smallint'		Then ''  When 'bit'		Then ''		When 'float'		Then ''	When 'image' Then ''
+
+									 When 'smalldatetime'		Then ''	 When 'real'		Then ''
+
+									  Else Coalesce( '(' + Case When ntn.MaxLen = -1  Then 'MAX' Else Cast( ntn.MaxLen As VarChar) End + ')' , '') End ) + ' ' +' '+ 
+									  
+					(Case			When ntn.IS_NULLABLE = 0 Then 'NOT ' Else '' End ) + 'NULL ' + ' '
+					
+					,ntn.name
+
+					from #tempnew ntn
+
+					join #tempOld tot on tot.name=ntn.name and tot.user_type_id <> ntn.user_type_id
+
+					inner join  sys.types t on t.user_type_id =ntn.user_type_id
+
+					OPEN DTBased_LU
+
+					FETCH NEXT FROM DTBased_LU INTO @sqlexecuteqry,@Cname
+
+						WHILE @@Fetch_status = 0
+
+							BEGIN
+
+								Print 'Drop Default1'
+
+								If @sqlexecuteqry <>''
+			
+									Begin
+				
+										Set @testQuery=(Select N' ALTER TABLE ' + @TableName  + N'  DROP CONSTRAINT ' + Quotename( sdc.name ) + ';' 
+
+										From sys.all_columns sc 
+
+										inner join  sys.tables  t ON   sc.object_id =t.object_id  and sc.name=@Cname
+
+										and t.object_id=object_id(@tablename) 
+
+										INner JOIN  sys.default_constraints sdc on sdc.parent_object_id =t.object_id and sc.default_object_id = sdc.object_id)
+
+										Print 'Drop Default2'
+
+										if @testQuery<>''
+			
+											Begin
+
+												Print (@testQuery)
+
+												exec (@testQuery)
+
+										End
+
+										Print 'DataType Executing qry..' + @sqlexecuteqry
+
+										exec (@sqlexecuteqry)
+
+										Print 'Executed qry..' + @sqlexecuteqry
+
+										Set @sqlexecuteqry=''
+				
+								End
+			
+								FETCH NEXT FROM DTBased_LU INTO @sqlexecuteqry,@Cname
+
+						End
+
+					CLOSE DTBased_LU
+
+					DEALLOCATE DTBased_LU
+
+				-- =================================================== CURSOR ============================================================= [INDEX11]
+				
+					Print 'Test query 3'
+
+			--======================================================[Add Table Default Key Constraint]===================================================	
+
+					Declare @Dfvalue  varchar(500)
+
+					Declare @Dfname  varchar(500)
+							
+
+							-- =================================================== CURSOR ============================================================= [INDEX12]
+					if @sqlexecuteqry <>'' Begin Set @sqlexecuteqry='' End
+
+					DECLARE ADFBased_LU CURSOR	FOR 
+
+					SELECT   N' ALTER TABLE ' + @TableName  + N' Add DEFAULT ' + sdc.definition +' FOR ' + Quotename( sc.name ) ,sc.name,Replace(Replace(isnull(sdc.definition,''),'(',''),')','')   --as OrgTableDEFConsDrop
+
+					From sys.all_columns sc inner join  sys.tables  t ON   sc.object_id =t.object_id 
+
+					and t.object_id=object_id(@TempTableName) 
+
+					INner JOIN  sys.default_constraints sdc on sdc.parent_object_id =t.object_id and sc.default_object_id = sdc.object_id
+				
+					left outer join (select column_id ,definition,sc.name  From sys.all_columns sc inner join  sys.tables  t ON   sc.object_id =t.object_id 
+
+					and t.object_id=object_id(@TableName) 
+
+					INner JOIN  sys.default_constraints sdc on sdc.parent_object_id =t.object_id and sc.default_object_id = sdc.object_id
+
+					)x on x.name = sc.name
+
+					where isnull(x.name,'')=''
+			
+					OPEN ADFBased_LU
+
+					FETCH NEXT FROM ADFBased_LU INTO @sqlexecuteqry,@Dfname,@DfValue
+
+						WHILE @@Fetch_status = 0
+
+							BEGIN
+
+								If @sqlexecuteqry <>''
+
+									Begin
+
+										Print 'Executing Update qry..'
+
+										exec('Update '  + @TableName + ' Set ' +@Dfname + '=' + @dfvalue +' where '+@Dfname + ' is Null')
+
+										Print 'Executed qry..' + @sqlexecuteqry
+
+										Print 'DF Executing qry..' + @sqlexecuteqry
+
+										exec (@sqlexecuteqry)
+
+										exec('Update '  + @TableName + ' Set ' +@Dfname + '=' + @dfvalue +' where '+@Dfname + ' is Null')
+
+										Print 'Executed qry..' + @sqlexecuteqry
+
+									Set @sqlexecuteqry=''
+
+								End
+				
+								FETCH NEXT FROM ADFBased_LU INTO @sqlexecuteqry,@Dfname,@DfValue
+
+						End
+
+					CLOSE ADFBased_LU
+					
+					DEALLOCATE ADFBased_LU
+	
+
+					Print 'Test query 4'
+		
+		-- =================================================== CURSOR ============================================================= [INDEX12]
+
+		--===================================================[NULL_CHANGE]==========================================================================
+
+					If @sqlexecuteqry <>'' Begin Set @sqlexecuteqry ='' END
+
+					Select * into #IndexNCC From (
+
+					SELECT N'Drop Index ' + name +' ON '+ @Tablename as OrgTableIndexDrop
+
+					from sys.indexes I
+
+					Join 
+				
+					Sys.index_columns IC 
+				
+					On Ic.Object_id=I.Object_id and Ic.index_id=I.Index_id
+				
+					join 
+				
+					(Select Isnull(tot.Column_Id ,0) as Column_Id from #tempnew ntn
+
+					join #tempOld tot on tot.name=ntn.name and tot.user_type_id =ntn.user_type_id and  tot.MaxLen = ntn.MaxLen and tot.is_nullable <>ntn.IS_NULLABLE and tot.name =ntn.name
+
+					inner join  sys.types t on t.user_type_id =ntn.user_type_id	and ntn.IS_NULLABLE=0) NccIN
+
+					On NccIN.Column_id=Ic.column_id 
+
+					where I.object_id =object_id(@TableName) and I.Type=2)ILC
+				
+					Select @sqlexecuteqry= isnull(OrgTableIndexDrop,'') from #IndexNCC
+				
+					while @sqlexecuteqry<>''
+								
+						Begin
+
+							Print 'NUllchange ' + @sqlexecuteqry 
+
+							Exec (@sqlexecuteqry)
+
+							Delete From #IndexNCC where OrgTableIndexDrop= @sqlexecuteqry
+
+							Set @sqlexecuteqry=''
+
+							Select @sqlexecuteqry= isnull(OrgTableIndexDrop,'') from #IndexNCC
+					
+					End
+
+			--=========================================== [ Primary Key Check  NULL_CHANGE_1 Start] ======================================================
+
+					If exists(Select * from #TempPrimaryKeys4old PKC
+				
+					join 
+				
+					(Select Isnull(tot.Column_Id ,0) as Column_ID,Tot.Name from #tempnew ntn
+								join #tempOld tot on tot.name=ntn.name and tot.user_type_id =ntn.user_type_id 
+								and  tot.MaxLen = ntn.MaxLen and tot.is_nullable <>ntn.IS_NULLABLE and tot.name =ntn.name
+								inner join  sys.types t on t.user_type_id =ntn.user_type_id and ntn.IS_NULLABLE=0) DTIN
+					On DTIN.Name=PKC.constraint_Keys  COLLATE SQL_Latin1_General_CP1_CI_AS )				
+				
+
+						Begin
+
+							If  @DiffPKConstraint=0
+
+								Begin
+
+									SELECT  @sqlexecuteqry= N' ALTER TABLE ' + QUOTENAME(s.name) + N'.'  + QUOTENAME(t.name) + N' DROP CONSTRAINT '  + QUOTENAME(c.name) + ';' --as OrgTableConsDrop
+
+									FROM sys.objects AS c INNER JOIN sys.tables AS t ON c.parent_object_id = t.[object_id] and t.object_id=object_id(@tablename)
+
+									INNER JOIN sys.schemas AS s ON t.[schema_id] = s.[schema_id] WHERE c.[type] IN ('PK','UQ') ORDER BY c.[type];
+
+									If ISNULL(@sqlexecuteqry,'') <>''
+
+										Begin
+									
+											Print 'Executing NULL_CHANGE_0 PK Drop Cons qry..' + @sqlexecuteqry
+
+											exec (@sqlexecuteqry)
+
+											Print 'Executed NULL_CHANGE_0 qry..' + @sqlexecuteqry
+
+											Set @sqlexecuteqry=''
+
+											Set @DiffPKConstraint=1
+
+									End	
+							
+							End
+
+					End
+
+				--=========================================== [ Primary Key Check  NULL_CHANGE_1 End] ======================================================
+
+
+					if @sqlexecuteqry <>'' Begin Set @sqlexecuteqry='' End
+
+					Print 'NUll started'
+
+					-- =================================================== CURSOR ============================================================= [INDEX13]
+
+					DECLARE NUCBased_LU CURSOR	FOR 	
+
+					Select  'Alter Table ' + @TableName + ' Alter Column [' + ntn.name + '] ' + t.name +
+
+					(Case t.name	When 'sql_variant' Then '' When 'text' Then ''
+			
+									When 'decimal' Then '(' + Cast( ntn.precision As varchar ) + ', ' + Cast( ntn.scale As varchar ) + ') '
+
+									When 'numeric' Then '(' + Cast( ntn.precision As varchar ) + ', ' + Cast( ntn.scale As varchar ) + ')'
+
+									when 'int'			Then '' When 'bigint'		Then '' When 'datetime'		Then ''	 When 'tinyint'		Then ''
+							
+									When 'Smallint'		Then ''  When 'bit'		Then ''		When 'float'		Then ''	When 'image' Then ''
+
+									When 'smalldatetime'		Then ''	When 'real'		Then ''
+							
+									Else Coalesce( '(' + Case When ntn.MaxLen = -1 Then 'MAX' Else Cast(ntn.MaxLen As VarChar ) End +')' , '' ) End) + ' ' +			 
+							
+					(Case			When ntn.is_identity=1 Then 'IDENTITY(' +(Select cast(sic.seed_value as varchar)+ ',' + cast(sic.increment_value as varchar) + ')'  
+			
+										from sys.identity_columns sic where sic.object_id=object_Id(@TempTableName))
+
+									Else '' End ) + ' ' +
+							
+					(Case			When ntn.IS_NULLABLE = 0 Then 'NOT ' Else '' End ) + 'NULL ' + ' '  --As [NULL_CHANGE] 
+			
+					from #tempnew ntn
+
+					join #tempOld tot on tot.name=ntn.name and tot.user_type_id =ntn.user_type_id and  tot.MaxLen = ntn.MaxLen and tot.is_nullable <>ntn.IS_NULLABLE and tot.name =ntn.name
+
+					inner join  sys.types t on t.user_type_id =ntn.user_type_id
+
+					and ntn.IS_NULLABLE=0
+
+					OPEN NUCBased_LU
+
+					FETCH NEXT FROM NUCBased_LU INTO @sqlexecuteqry
+
+						WHILE @@Fetch_status = 0
+
+							BEGIN
+
+								If @sqlexecuteqry <>''
+
+									Begin
+									
+										Print 'Null Executing qry..' + @sqlexecuteqry
+										
+										exec (@sqlexecuteqry)
+										
+										Print 'Executed qry..' + @sqlexecuteqry
+										
+									Set @sqlexecuteqry=''
+									
+								End
+								
+								FETCH NEXT FROM NUCBased_LU INTO @sqlexecuteqry
+								
+						End
+						
+					CLOSE NUCBased_LU
+					
+					DEALLOCATE NUCBased_LU
+				
+									-- =================================================== CURSOR ============================================================= [INDEX13]
+
+				--=========================================== Creating ClusteredIndex and Unique Index 4 Columns ============================================
+
+	
+					Select * into #columnname From(
+			
+					Select si.index_id,si.name AS index_name,sic.column_id,c.name as ColumnName,@tablename as Table_name
+			
+					FROM sys.indexes AS si 
+			
+					JOIN sys.tables AS t ON si.object_id=t.object_id and t.object_id =object_id (@temptablename) and si.is_primary_key =0--- temptable
+			
+					JOIN sys.schemas AS sc ON t.schema_id=sc.schema_id
+			
+					left Join Sys.index_columns As sic On sic.object_ID=si.Object_id and Sic.index_id=si.index_id
+			
+					left Join Sys.columns As c On c.object_ID=t.Object_id and Sic.column_id=c.column_id)col
+			
+
+					Select * into #FinalTable from(SELECT Distinct(si.index_id),DB_NAME() AS database_name,@tablename as Table_name,
+			
+					si.name AS index_name,
+			
+					CASE si.index_id WHEN 0 THEN N'/* No create statement (Heap) */' 
+			
+					ELSE    
+			
+					CASE is_primary_key WHEN 1 THEN
+			
+					N'ALTER TABLE ' + QUOTENAME(sc.name) + N'.' + QUOTENAME(t.name) + N' ADD CONSTRAINT ' + QUOTENAME(si.name) + N' PRIMARY KEY ' +
+			
+					CASE WHEN si.index_id > 1 THEN N'NON' ELSE N'' END + N'CLUSTERED '
+			
+					ELSE N'CREATE ' + 
+			
+					CASE WHEN si.is_unique = 1 then N'UNIQUE ' ELSE N'' END +
+			
+					CASE WHEN si.index_id > 1 THEN N'NON' ELSE N'' END + N'CLUSTERED ' +
+			
+					N'INDEX ' + QUOTENAME(si.name) + N' ON ' + @tablename + N' '--QUOTENAME(sc.name) + N'.' + QUOTENAME(t.name) + N' '--change as table name
+			
+					+' (' + STUFF ((SELECT N', ' + QUOTENAME(ColumnName) --On
+			
+					FROM #columnname where index_id= si.index_id
+			
+					ORDER BY c.name FOR XML PATH(''), TYPE).value('.', 'NVARCHAR(MAX)'),1,2,'') + ') On [Primary];' 
+			
+					END
+			
+					END as Index_create_statement
+			
+					FROM sys.indexes AS si 
+			
+					JOIN sys.tables AS t ON si.object_id=t.object_id and t.object_id =object_id (@temptablename) and si.is_primary_key =0--- temptable
+
+					JOIN sys.schemas AS sc ON t.schema_id=sc.schema_id
+
+					left Join Sys.index_columns As sic On sic.object_ID=si.Object_id and Sic.index_id=si.index_id
+
+					left Join Sys.columns As c On c.object_ID=t.Object_id and Sic.column_id=c.column_id
+			
+					LEFT JOIN sys.dm_db_index_usage_stats AS stat ON stat.database_id=DB_ID() and si.object_id=stat.object_id and si.index_id=stat.index_id
+						
+					LEFT JOIN sys.partition_schemes AS psc ON si.data_space_id=psc.data_space_id
+			
+					LEFT JOIN sys.partition_functions AS pf ON psc.function_id=pf.function_id
+			
+					LEFT JOIN sys.filegroups AS fg ON si.data_space_id=fg.data_space_id
+
+					)FT
+	
+
+					OPTION (RECOMPILE);
+
+
+			--=============================================[Select Index Query From Final Table]=========================================================
+
+
+					if @sqlexecuteqry <>'' Begin Set @sqlexecuteqry='' End
+
+
+					Select * into #IndexedRemoved from (Select Ft.* from #FinalTable Ft inner join sys.indexes si on si.object_id=Object_Id(@tableName) and si.name=Ft.index_name )IR
+
+
+					Delete ft From #FinalTable ft inner join #indexedRemoved ir on ir.table_name=ft.Table_name and ir.Index_id=ft.Index_id
+
+
+					Select  @sqlexecuteqry=Index_create_statement --as Indexes_creation 
+
+
+					from #FinalTable ORDER BY table_name, index_id
+			
+
+					DECLARE INDBased_LU CURSOR	FOR 
+
+						SELECT   Index_create_statement --as Indexes_creation 
+
+							from #FinalTable ORDER BY table_name, index_id
+
+							OPEN INDBased_LU
+
+							FETCH NEXT FROM INDBased_LU INTO @sqlexecuteqry
+					
+								WHILE @@Fetch_status = 0
+						
+									BEGIN
+							
+										If @sqlexecuteqry <>''
+								
+											Begin
+																		
+												Print 'Executing qry..' + @sqlexecuteqry
+										
+												exec (@sqlexecuteqry)
+										
+												Print 'Executed qry..' + @sqlexecuteqry
+
+											Set @sqlexecuteqry=''
+
+										End
+
+									FETCH NEXT FROM INDBased_LU INTO @sqlexecuteqry
+
+								End
+
+					CLOSE INDBased_LU
+
+					DEALLOCATE INDBased_LU
+			
+
+				--======================================================[Add Table Primary Key Constraint Key wise]==========================================
+
+
+					if @sqlexecuteqry <>'' Begin Set @sqlexecuteqry='' End
+
+		----If @PKCount <>0 or @PKColCount <>0 
+		
+					IF @DiffPKConstraint>0
+		
+						Begin
+			
+							SET @sqlexecuteqry=''
+
+							SET @sqlexecuteqry=(SELECT 'ALTER TABLE '+ @TableName + ' ADD CONSTRAINT PK_'+@TableName+ ' ' + PKType+'('+REPLACE(Constraint_Keys,'(-)','')+' '+KeyOrder+')' FROM  #TempPrimaryKeys4New WITH(NOLOCK) )
+
+							IF ISNULL(@Sqlexecuteqry,'')<>''
+				
+								BEGIN
+				
+								  Print 'Executing PrimaryKey Constraint Qry...' +@Sqlexecuteqry
+				  				  
+								  EXEC(@Sqlexecuteqry)
+
+								  Print 'Executed PrimaryKey Constraint Qry...' +@Sqlexecuteqry
+
+							END
+
+					End
+		
+			--=============================================[Drop TempTable]==============================================================================
+	
+			Exec ('Drop table ' + @Temptablename )
+			
+			End
+			
+			--====================================================================================================================================== [INDEX_3] 
+
+			--[INDEX_4]
+			
+			Else                 
+
+			Begin
+			
+				If @TemptableStruct <>''
+
+					Begin
+
+						Set @TempTableStruct=Replace(@TempTableStruct,'_LU','')
+
+						EXEC sp_executesql @TemptableStruct 
+
+				End
+				
+			End 
+
+			--[INDEX_4]
+			
+	--=============================================[Commit Transaction]==========================================================================
+
+		if @Ansi=0 SET ANSI_NULLS OFF					print 'Ansi OFF'
+
+		IF @Quoted = 0 SET QUOTED_IDENTIFIER OFF		print 'QUOTED_IDENTIFIER OFF'
+
+		IF @Num = 0 SET NUMERIC_ROUNDABORT OFF			print 'NUMERIC_ROUNDABORT OFF'
+
+		IF  @arith = 0 SET ARITHABORT OFF				print  'ARITHABORT OFF'
+
+		IF  @ConCa = 0 SET CONCAT_NULL_YIELDS_NULL OFF	print  'CONCAT_NULL_YIELDS_NULL OFF'
+
+		IF  @war = 0 SET ANSI_WARNINGS OFF				print  'ANSI_WARNINGS OFF'
+
+		IF  @padd = 0 SET ANSI_PADDING OFF				print  'ANSI_PADDING OFF'
+
+		COMMIT TRANSACTION @TranName; 
+
+		Select 'Success' as Result
+
+		
+	--=============================================[End Try]=====================================================================================  [INDEX_1]
+	
+	End Try
+	
+
+	--=============================================[Begin Of Catch]============================================================================== [INDEX_2]
+
+	
+	Begin Catch
+		
+		Declare @Errornumber varchar(50)
+		
+		Declare @ErrorMessage varchar(5000)
+		
+		SELECT @Errornumber= ERROR_NUMBER() 
+		
+		--print ERROR_MESSAGE()
+		
+		SELECT @errorMessage=ERROR_MESSAGE()
+		
+		Select @Errornumber as ErrorNumber ,@ErrorMessage As Message
+		
+		if @Ansi=0 SET ANSI_NULLS OFF					print 'RollBack Ansi OFF R'
+		
+		IF @Quoted = 0 SET QUOTED_IDENTIFIER OFF		print 'RollBack QUOTED_IDENTIFIER OFF'
+		
+		IF @Num = 0 SET NUMERIC_ROUNDABORT OFF			print 'RollBack NUMERIC_ROUNDABORT OFF'
+		
+		IF  @arith = 0 SET ARITHABORT OFF				print 'RollBack ARITHABORT OFF'
+		
+		IF  @ConCa = 0 SET CONCAT_NULL_YIELDS_NULL OFF	print  'RollBack CONCAT_NULL_YIELDS_NULL OFF'
+		
+		IF  @war = 0 SET ANSI_WARNINGS OFF				print  'RollBack ANSI_WARNINGS OFF'
+
+		IF  @padd = 0 SET ANSI_PADDING OFF				print  'RollBack ANSI_PADDING OFF'
+				
+		Rollback Transaction @TranName;
+
+
+		IF (SELECT CURSOR_STATUS('global','IndexBased_LU')) >= -1
+			BEGIN
+			
+				IF (SELECT CURSOR_STATUS('global','IndexBased_LU')) > -1
+
+					BEGIN
+					
+						CLOSE IndexBased_LU
+
+				END
+				
+				DEALLOCATE IndexBased_LU
+				
+		END
+
+
+		IF (SELECT CURSOR_STATUS('global','ADFBased_LU')) >= -1
+		
+			BEGIN
+			
+				IF (SELECT CURSOR_STATUS('global','ADFBased_LU')) > -1
+				
+					BEGIN
+					
+						CLOSE ADFBased_LU
+
+				END
+				
+				DEALLOCATE ADFBased_LU
+
+		END
+
+
+		IF (SELECT CURSOR_STATUS('global','DFBased_LU')) >= -1
+		
+			BEGIN
+			
+				IF (SELECT CURSOR_STATUS('global','DFBased_LU')) > -1
+
+					BEGIN
+					
+						CLOSE DFBased_LU
+
+				END
+
+				DEALLOCATE DFBased_LU
+
+		END
+
+
+		IF (SELECT CURSOR_STATUS('global','DTBased_LU')) >= -1
+		
+			BEGIN
+			
+				IF (SELECT CURSOR_STATUS('global','DTBased_LU')) > -1
+				
+					BEGIN
+
+						CLOSE DTBased_LU
+
+				END
+				
+				DEALLOCATE DTBased_LU
+
+		END
+
+
+		IF (SELECT CURSOR_STATUS('global','NUCBased_LU')) >= -1
+		
+			BEGIN
+			
+				IF (SELECT CURSOR_STATUS('global','NUCBased_LU')) > -1
+				
+					BEGIN
+					
+						CLOSE NUCBased_LU
+						
+				END
+				
+				DEALLOCATE NUCBased_LU
+				
+		END
+		
+		IF (SELECT CURSOR_STATUS('global','NCBased_LU')) >= -1
+		
+			BEGIN
+			
+				IF (SELECT CURSOR_STATUS('global','NCBased_LU')) > -1
+				
+					BEGIN
+					
+						CLOSE NCBased_LU
+						
+				END
+				
+				DEALLOCATE NCBased_LU
+		END
+
+
+		IF (SELECT CURSOR_STATUS('global','LCBased_LU')) >= -1
+
+			BEGIN
+
+				IF (SELECT CURSOR_STATUS('global','LCBased_LU')) > -1
+
+					BEGIN
+
+						CLOSE LCBased_LU
+
+				END
+
+				DEALLOCATE LCBased_LU
+
+		END
+
+		IF (SELECT CURSOR_STATUS('global','INDBased_LU')) >= -1
+
+			BEGIN
+
+				IF (SELECT CURSOR_STATUS('global','INDBased_LU')) > -1
+
+					BEGIN
+
+						CLOSE INDBased_LU
+
+				END
+
+				DEALLOCATE INDBased_LU
+
+		END
+
+	--=============================================[Handling Table Already Present Error]========================================================
+
+
+
+		--DEclare @bcpCommand nvarchar(1000)
+
+
+
+		--Declare @outputFile nvarchar(1000)
+
+
+
+		--SET @bcpCommand = 'bcp "Select ' +@ErrorMessage +','+@Errornumber +' " queryout '
+
+
+
+		--SET @OutputFile = 'D:\SQLLogCompare.txt'
+
+
+
+		--SET @bcpCommand = @bcpCommand +  @OutputFile + ' -c -t, -T -S'--+ @@servername
+
+
+
+		--exec master..xp_cmdshell @bcpCommand,'no_output'
+
+
+
+		--Print @bcpCommand
+
+
+		If @errornumber='2714' 
+
+			Begin 
+
+				print Error_number() 
+
+
+				Exec('Drop Table ' + @temptablename)  
+
+
+				exec Script4ColumnsChange @Temptablename,@tablename,@temptableStruct 
+				
+		End
+
+		 
+	--=============================================[End Of Catch]================================================================================  [INDEX_2]
+
+	End Catch
+
+
+End
